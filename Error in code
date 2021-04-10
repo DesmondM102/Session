@@ -1,0 +1,69 @@
+import streamlit as st
+import psycopg2
+from sqlalchemy import create_engine
+from streamlit.report_thread import get_report_ctx
+
+def get_session_id():
+    session_id = get_report_ctx().session_id
+    session_id = session_id.replace('-','_')
+    session_id = '_id_' + session_id
+    return session_id
+
+# for this, we want to save the state of the columns and their respective values
+def write_state(column,value,engine,session_id):
+    engine.execute("UPDATE %s SET %s='%s'" % (session_id,column,value))
+
+# we want to save the state of the dataframe    
+def write_state_df(df,engine,session_id):
+    df.to_sql('%s' % (session_id),engine,index=False,if_exists='replace',chunksize=1000)
+
+# We want to read the state of the column values
+def read_state(column,engine,session_id):
+    state_var = engine.execute("SELECT %s FROM %s" % (column,session_id))
+    state_var = state_var.first()[0]
+    return state_var
+
+# we want to read the state of the dataframe 
+def read_state_df(engine,session_id):
+    try:
+        df = pd.read_sql_table(session_id,con=engine)
+    except:
+        df = pd.DataFrame([])
+    return df
+
+#Creating PostgreSQL client
+engine = create_engine('postgresql://' + username + ':' + password+ '@localhost:5432/' + database) 
+#engine = create_engine('postgresql://username:password@localhost:5432/database name')
+
+#Getting session ID
+session_id = get_session_id()
+
+# Create table using the current session
+engine.execute("CREATE TABLE IF NOT EXISTS %s (Variable text)" % (session_id)) 
+len_table =  engine.execute("SELECT COUNT(*) FROM %s" % (session_id));
+len_table = len_table.first()[0]
+if len_table == 0:
+    engine.execute("INSERT INTO %s (Variable) VALUES ('1')" % (session_id));
+
+# st.sidebar.title("Get Started")
+pages = ["About us", "Data and Analysis"]
+
+# About us page
+choice_1 = st.sidebar.selectbox("Menu", pages)
+
+....
+
+# Page 2
+elif choice_1 == "Data and Analysis": 
+ Select_cols_dataframe = st.multiselect("Choose columns to Display", options=data_col, key="dataframe choice")# distinct selectbox
+                read_state('Variable', engine, session_id) #####****(ERROR SHOWS UP HERE) 
+                write_state('Variable',Select_cols_dataframe, engine, session_id)
+                Select_cols_dataframe = read_state('Variable',engine,session_id)
+                
+                Data_to_select= Trans_data[Select_cols_dataframe] # dataframe to select from
+                
+                
+                if not Select_cols_dataframe:
+                    st.error("Please select at least one column.")
+                else:
+                    st.write(Data_to_select.style.set_precision(2)) 
